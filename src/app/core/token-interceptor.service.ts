@@ -9,6 +9,7 @@ import {
 import { Observable } from 'rxjs';
 import { InjectionToken } from '@angular/core';
 
+export const XCallerChainSkipHeader = 'x-caller-chain-skip';
 export const X_CALLER_CHAIN_TOKEN = new InjectionToken('x-caller-chain');
 
 @Injectable({
@@ -24,13 +25,18 @@ export class TokenInterceptorService implements HttpInterceptor {
     next: HttpHandler
   ): Observable<HttpEvent<any>> {
     console.log(`xCallerChain Token: ${this.xCallerChain}`);
-    return next.handle(
-      req.clone({
-        headers: req.headers.append(
-          'Authorization',
-          'Bearer THIS_IS_THE_ACCESS_TOKEN'
-        ),
-      })
-    );
+    if (req.headers.has(XCallerChainSkipHeader)) {
+      const headers = req.headers.delete(XCallerChainSkipHeader);
+      return next.handle(req.clone({ headers }));
+    } else {
+      req = req.clone({
+        setHeaders: {
+          'x-caller-chain': this.xCallerChain
+            ? this.xCallerChain
+            : 'myEnterprise',
+        },
+      });
+      return next.handle(req);
+    }
   }
 }
